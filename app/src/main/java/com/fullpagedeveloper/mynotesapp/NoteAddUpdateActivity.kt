@@ -2,29 +2,32 @@ package com.fullpagedeveloper.mynotesapp
 
 import android.content.ContentValues
 import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
+import android.net.Uri
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
 import com.fullpagedeveloper.mynotesapp.databinding.ActivityNoteAddUpdateBinding
-import com.fullpagedeveloper.mynotesapp.db.DatabaseContract
+import com.fullpagedeveloper.mynotesapp.db.DatabaseContract.NoteColumns.Companion.CONTENT_URI
 import com.fullpagedeveloper.mynotesapp.db.DatabaseContract.NoteColumns.Companion.DATE
-import com.fullpagedeveloper.mynotesapp.db.NoteHelper
+import com.fullpagedeveloper.mynotesapp.db.DatabaseContract.NoteColumns.Companion.DESCRIPTION
+import com.fullpagedeveloper.mynotesapp.db.DatabaseContract.NoteColumns.Companion.TITLE
 import com.fullpagedeveloper.mynotesapp.entity.Note
+import com.fullpagedeveloper.mynotesapp.helper.MappingHelper
 import java.text.SimpleDateFormat
 import java.util.*
 
 class NoteAddUpdateActivity : AppCompatActivity(), View.OnClickListener {
 
+    private lateinit var binding: ActivityNoteAddUpdateBinding
     private var isEdit = false
     private var note: Note? = null
     private var position: Int = 0
-    private lateinit var noteHelper: NoteHelper
-
-    private lateinit var binding: ActivityNoteAddUpdateBinding
+    private lateinit var uriWithId: Uri
+    //private lateinit var noteHelper: NoteHelper
 
     companion object {
         const val EXTRA_NOTE = "extra_note"
@@ -43,12 +46,12 @@ class NoteAddUpdateActivity : AppCompatActivity(), View.OnClickListener {
         binding = ActivityNoteAddUpdateBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        noteHelper = NoteHelper.getInstance(applicationContext)
-        noteHelper.open()
+//        noteHelper = NoteHelper.getInstance(applicationContext)
+//        noteHelper.open()
 
         note = intent.getParcelableExtra(EXTRA_NOTE)
         if (note != null) {
-            position = intent.getIntExtra(EXTRA_NOTE, 0)
+            position = intent.getIntExtra(EXTRA_POSITION, 0)
             isEdit = true
         } else {
             note = Note()
@@ -58,13 +61,21 @@ class NoteAddUpdateActivity : AppCompatActivity(), View.OnClickListener {
         val btnTitle: String
 
         if (isEdit) {
+            // Uri yang di dapatkan disini akan digunakan untuk ambil data dari provider
+            // content://com.fullpagedeveloper.mynotesapp/note/id
+            uriWithId = Uri.parse(CONTENT_URI.toString() + "/" + note?.id)
+
+            val cursor = contentResolver.query(uriWithId, null, null, null, null)
+            if (cursor != null && cursor.count > 0) {
+                note = MappingHelper.mapCursorToObject(cursor)
+                cursor.close()
+            }
+
             actionBarTitle = "Ubah"
             btnTitle = "Update"
 
-            note?.let {
-                binding.edtTitle.setText(it.title)
-                binding.edtDescription.setText(it.description)
-            }
+            note?.let { binding.edtTitle.setText(it.title) }
+            note?.let { binding.edtDescription.setText(it.description) }
         } else {
             actionBarTitle = "Tambah"
             btnTitle = "Simpan"
@@ -83,6 +94,9 @@ class NoteAddUpdateActivity : AppCompatActivity(), View.OnClickListener {
             val title = binding.edtTitle.text.toString().trim()
             val description = binding.edtDescription.text.toString().trim()
 
+            /*
+            Jika fieldnya masih kosong maka tampilkan error
+             */
             if (title.isEmpty()) {
                 binding.edtTitle.error = "Field can not be blank"
                 return
@@ -95,30 +109,48 @@ class NoteAddUpdateActivity : AppCompatActivity(), View.OnClickListener {
             intent.putExtra(EXTRA_NOTE, note)
             intent.putExtra(EXTRA_POSITION, position)
 
+            // Gunakan contentvalues untuk menampung data
             val values = ContentValues()
-            values.put(DatabaseContract.NoteColumns.TITLE, title)
-            values.put(DatabaseContract.NoteColumns.DESCRIPTION, description)
+            values.put(TITLE, title)
+            values.put(DESCRIPTION, description)
 
+            /*
+           Jika merupakan edit setresultnya UPDATE, dan jika bukan maka setresultnya ADD
+            */
             if (isEdit) {
-                val result = noteHelper.update(note?.id.toString(), values).toLong()
-                if (result > 0) {
-                    setResult(RESULT_UPDATE, intent)
-                    finish()
-                } else {
-                    Toast.makeText(this@NoteAddUpdateActivity, "Gagal mengupdate data", Toast.LENGTH_SHORT).show()
-                }
-            } else {
-                note?.date = getCurrentDate()
-                values.put(DATE, getCurrentDate())
-                val result = noteHelper.insert(values)
+                // Gunakan uriWithId dari intent activity ini
+                // content://com.dicoding.picodiploma.mynotesapp/note/id
+                //val result = noteHelper.update(note?.id.toString(), values).toLong()
 
-                if (result > 0) {
-                    note?.id = result.toInt()
-                    setResult(RESULT_ADD, intent)
-                    finish()
-                } else {
-                    Toast.makeText(this@NoteAddUpdateActivity, "Gagal menambah data", Toast.LENGTH_SHORT).show()
-                }
+                contentResolver.update(uriWithId, values, null, null)
+                Toast.makeText(this@NoteAddUpdateActivity, "Satu item berhasil diedit", Toast.LENGTH_SHORT).show()
+                finish()
+
+//                val result = noteHelper.update(note?.id.toString(), values).toLong()
+//                if (result > 0) {
+//                    setResult(RESULT_UPDATE, intent)
+//                    finish()
+//                } else {
+//                    Toast.makeText(this@NoteAddUpdateActivity, "Gagal mengupdate data", Toast.LENGTH_SHORT).show()
+//                }
+            } else {
+                //note?.date = getCurrentDate()
+                values.put(DATE, getCurrentDate())
+                // Gunakan content uri untuk insert
+                // content://com.fullpagedeveloper.mynotesapp/note/
+
+                contentResolver.insert(CONTENT_URI, values)
+                Toast.makeText(this@NoteAddUpdateActivity, "Satu item berhasil disimpan", Toast.LENGTH_SHORT).show()
+                finish()
+
+//                val result = noteHelper.insert(values)
+//                if (result > 0) {
+//                    note?.id = result.toInt()
+//                    setResult(RESULT_ADD, intent)
+//                    finish()
+//                } else {
+//                    Toast.makeText(this@NoteAddUpdateActivity, "Gagal menambah data", Toast.LENGTH_SHORT).show()
+//                }
             }
         }
     }
@@ -144,6 +176,11 @@ class NoteAddUpdateActivity : AppCompatActivity(), View.OnClickListener {
         return super.onOptionsItemSelected(item)
     }
 
+    /*
+    Konfirmasi dialog sebelum proses batal atau hapus
+    close = 10
+    delete = 20
+    */
     private fun showAlertDialog(type: Int) {
         val isDialogClose = type == ALERT_DIALOG_CLOSE
         val dialogTitle: String
@@ -166,15 +203,22 @@ class NoteAddUpdateActivity : AppCompatActivity(), View.OnClickListener {
                 if (isDialogClose) {
                     finish()
                 } else {
-                    val result = noteHelper.deleteById(note?.id.toString()).toLong()
-                    if (result > 0) {
-                        val intent = Intent()
-                        intent.putExtra(EXTRA_POSITION, position)
-                        setResult(RESULT_DELETE, intent)
-                        finish()
-                    } else {
-                        Toast.makeText(this@NoteAddUpdateActivity, "Gagal menghapus data", Toast.LENGTH_SHORT).show()
-                    }
+                    // Gunakan uriWithId untuk delete
+                    // content://com.fullpagedeveloper.mynotesapp/note/id
+
+                    contentResolver.delete(uriWithId, null, null)
+                    Toast.makeText(this, "Satu item berhasil dihapus", Toast.LENGTH_SHORT).show()
+                    finish()
+
+//                    val result = noteHelper.deleteById(note?.id.toString()).toLong()
+//                    if (result > 0) {
+//                        val intent = Intent()
+//                        intent.putExtra(EXTRA_POSITION, position)
+//                        setResult(RESULT_DELETE, intent)
+//                        finish()
+//                    } else {
+//                        Toast.makeText(this@NoteAddUpdateActivity, "Gagal menghapus data", Toast.LENGTH_SHORT).show()
+//                    }
                 }
             }
             .setNegativeButton("Tidak") { dialog, _ -> dialog.cancel() }

@@ -5,37 +5,32 @@ import android.content.Context
 import android.database.Cursor
 import android.database.SQLException
 import android.database.sqlite.SQLiteDatabase
+import android.provider.BaseColumns
 import com.fullpagedeveloper.mynotesapp.db.DatabaseContract.NoteColumns.Companion.TABLE_NAME
 import com.fullpagedeveloper.mynotesapp.db.DatabaseContract.NoteColumns.Companion._ID
+import kotlin.jvm.Throws
 
 class NoteHelper(context: Context) {
 
+    private val dataBaseHelper: DatabaseHelper = DatabaseHelper(context)
+
+    private lateinit var database: SQLiteDatabase
+
     companion object {
         private const val DATABASE_TABLE = TABLE_NAME
-        private lateinit var dataBaseHelper: DatabaseHelper
-
-        //method ini berfungsi untuk menginisiasi database
         private var INSTANCE: NoteHelper? = null
+
         fun getInstance(context: Context): NoteHelper =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: NoteHelper(context)
             }
-
-        private lateinit var database: SQLiteDatabase
     }
 
-    //buat konstructornya
-    init {
-        dataBaseHelper = DatabaseHelper(context)
-    }
-
-    //open connection ke database
     @Throws(SQLException::class)
     fun open() {
         database = dataBaseHelper.writableDatabase
     }
 
-    //close connection ke database
     fun close() {
         dataBaseHelper.close()
 
@@ -43,7 +38,10 @@ class NoteHelper(context: Context) {
             database.close()
     }
 
-    // method untuk proses CRUD, method untuk mengambil data
+    /**
+     * Ambil data dari semua note yang ada di dalam database
+     * @return cursor hasil queryAll
+     */
     fun queryAll(): Cursor {
         return database.query(
             DATABASE_TABLE,
@@ -52,34 +50,47 @@ class NoteHelper(context: Context) {
             null,
             null,
             null,
-            "$_ID ASC")
-    }
-
-    //method untuk mengambil data dengan ID tertentu
-    fun queryById(id: String): Cursor {
-        return database.query(
-            DATABASE_TABLE,
-            null,
-            "$_ID = ?",
-            arrayOf(id),
-            null,
-            null,
-            null,
+            "${BaseColumns._ID} DESC",
             null)
     }
 
-    //method untuk menyimpan data
+    /**
+     * Ambil data dari note berdasarakan parameter id
+     * @param id id note yang dicari
+     * @return cursor hasil queryAll
+     */
+    fun queryById(id: String): Cursor {
+        return database.query(DATABASE_TABLE, null, "${BaseColumns._ID} = ?", arrayOf(id), null, null, null, null)
+    }
+
+    /**
+     * Simpan data ke dalam database
+     *
+     * @param values nilai data yang akan di simpan
+     * @return long id dari data yang baru saja di masukkan
+     */
     fun insert(values: ContentValues?): Long {
         return database.insert(DATABASE_TABLE, null, values)
     }
 
-    //method untuk memperbaruhi data
+    /**
+     * Update data dalam database
+     *
+     * @param id     data dengan id berapa yang akan di update
+     * @param values nilai data baru
+     * @return int jumlah data yang ter-update
+     */
     fun update(id: String, values: ContentValues?): Int {
-        return database.update(DATABASE_TABLE, values, "$_ID = ?", arrayOf(id))
+        return database.update(DATABASE_TABLE, values, "${BaseColumns._ID} = ?", arrayOf(id))
     }
 
-    //method untuk menghapus data
+    /**
+     * Delete data dalam database
+     *
+     * @param id data dengan id berapa yang akan di delete
+     * @return int jumlah data yang ter-delete
+     */
     fun deleteById(id: String): Int {
-        return database.delete(DATABASE_TABLE, "$_ID = '$id'", null)
+        return database.delete(TABLE_NAME, "${BaseColumns._ID} = '$id'", null)
     }
 }

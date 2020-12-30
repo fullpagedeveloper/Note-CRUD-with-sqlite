@@ -14,14 +14,14 @@ import com.fullpagedeveloper.mynotesapp.entity.Note
 
 class NoteAdapter(private val activity: Activity): RecyclerView.Adapter<NoteAdapter.NoteViewHolder>() {
 
-    var listNotes = ArrayList<Note>()
-        set(listNotes) {
-            if (listNotes.size > 0) {
-                this.listNotes.clear()
-            }
-            this.listNotes.addAll(listNotes)
-            notifyDataSetChanged()
-        }
+//    var listNotes = ArrayList<Note>()
+//        set(listNotes) {
+//            if (listNotes.size > 0) {
+//                this.listNotes.clear()
+//            }
+//            this.listNotes.addAll(listNotes)
+//            notifyDataSetChanged()
+//        }
 
     //method add
     fun addItem(note: Note) {
@@ -42,23 +42,12 @@ class NoteAdapter(private val activity: Activity): RecyclerView.Adapter<NoteAdap
         notifyItemRangeChanged(position, this.listNotes.size)
     }
 
-    inner class NoteViewHolder(itemView: View): RecyclerView.ViewHolder(itemView) {
-        private val binding = ItemNoteBinding.bind(itemView)
-        fun bind(note: Note) {
-            binding.tvItemTitle.text = note.title
-            binding.tvItemDate.text = note.date
-            binding.tvItemDescription.text = note.description
-            binding.cvItemNote.setOnClickListener ( CustomOnItemClickListener(adapterPosition, object : CustomOnItemClickListener.OnItemClickCallback{
-                override fun onItemClicked(view: View, position: Int) {
-                    val intent = Intent(activity, NoteAddUpdateActivity::class.java)
-                    intent.putExtra(NoteAddUpdateActivity.EXTRA_POSITION, position)
-                    intent.putExtra(NoteAddUpdateActivity.EXTRA_NOTE, note)
-                    activity.startActivityForResult(intent, NoteAddUpdateActivity.REQUEST_UPDATE)
-                }
-
-            }))
+    var listNotes = java.util.ArrayList<Note>()
+        set(listNotes) {
+            this.listNotes.clear()
+            this.listNotes.addAll(listNotes)
+            notifyDataSetChanged()
         }
-    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): NoteViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.item_note, parent, false)
@@ -69,5 +58,25 @@ class NoteAdapter(private val activity: Activity): RecyclerView.Adapter<NoteAdap
         holder.bind(listNotes[position])
     }
 
-    override fun getItemCount(): Int = this.listNotes.size
+    override fun getItemCount(): Int {
+        return this.listNotes.size
+    }
+
+    inner class NoteViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val binding = ItemNoteBinding.bind(itemView)
+
+        fun bind(note: Note) {
+            binding.tvItemTitle.text = note.title
+            binding.tvItemDate.text = note.date
+            binding.tvItemDescription.text = note.description
+            binding.cvItemNote.setOnClickListener(CustomOnItemClickListener(adapterPosition, object : CustomOnItemClickListener.OnItemClickCallback {
+                override fun onItemClicked(view: View, position: Int) {
+                    val intent = Intent(activity, NoteAddUpdateActivity::class.java)
+                    intent.putExtra(NoteAddUpdateActivity.EXTRA_POSITION, position)
+                    intent.putExtra(NoteAddUpdateActivity.EXTRA_NOTE, note)
+                    activity.startActivityForResult(intent, NoteAddUpdateActivity.REQUEST_UPDATE)
+                }
+            }))
+        }
+    }
 }
